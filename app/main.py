@@ -15,8 +15,12 @@ import os
 import cv2
 import imutils
 import datetime
+import thread
+import Queue
 from modules.detect_motion import MotionDetector
-from modules.detect_face import FaceDetector
+from modules.detect_face import DetectFace
+from copy import deepcopy
+
 
 
 if __name__ == "__main__":
@@ -33,6 +37,8 @@ if __name__ == "__main__":
 	scaleFactor=1.1
 	minNeighbors=5
 	minSize=(30,30)
+		# Configuration Parameters for Face Detection Threading
+	FaceDetectionWorkers=4
 		# Configuration Parameters for Camera
 	rpiCam=True
 	cameraNum=0
@@ -41,7 +47,7 @@ if __name__ == "__main__":
 	fps=30
 		# Configuration Parameters for Video
 		# Video File Path:
-	VidPath="./app/data/videos/example_01.mp4"
+	VidPath="./app/data/videos/example_03.mp4"
 
 	
 	# Initialization Stage of the program:
@@ -67,15 +73,18 @@ if __name__ == "__main__":
 	md=MotionDetector()
 			#Configuring the motion detector
 	md.motionsense=0
+		# Face Detection Service Queue
+	frameQ=Queue.Queue()
+	imgnoQ=Queue.Queue()
+		#Initializing the face Cascade modules & FaceDetection Threads
+	for ID in range(FaceDetectionWorkers):
+		FaceCascade =cv2.CascadeClassifier(CascPath)
+		thread.start_new_thread(DetectFace,(frameQ,imgnoQ,scaleFactor,minNeighbors,minSize,FaceCascade,ID))
 	
-		#Initializing the face detector module
-	fd=FaceDetector(scaleFactor,minNeighbors,minSize,CascPath)
-		
-
 		#Initializing the live feed GUI
 	cv2.namedWindow("Feed")
 
-
+	
 
 
 	# The Loop section of the program: (Continous Loop)
@@ -103,20 +112,14 @@ if __name__ == "__main__":
 
 		# Motion detection section
 		motion, boxes = md.detectMotion(frame)
-
 		
-
-		
-
 		# Handling Frames with Motion section
 		if motion:
 			md.reset() # Reseting the detector to avoid flooding the system
-						
-			# Face detection section
-			fd.DetectFace(frame,imgno)
-
-
-
+			
+			# New background job for Face Detection Thread
+			frameQ.put(deepcopy(frame))
+			imgnoQ.put(imgno)
 
 			# GUI for live feed alert in case of Motion
 
@@ -140,6 +143,7 @@ if __name__ == "__main__":
 		if key != 255:
 		    break
 	#In case of using camera feed, release the resource
+	frameQ.join()
 	if cam_feed:
 		feed.cleanup()
 	#Destroy GUI elements		

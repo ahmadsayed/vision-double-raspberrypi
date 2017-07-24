@@ -17,10 +17,14 @@ import imutils
 import datetime
 import thread
 import Queue
+from modules.detect_blur import DetectBlur
 from modules.detect_motion import MotionDetector
 from modules.detect_face import DetectFace
 from copy import deepcopy
-
+class framecontainer():
+	def __init__(self,Image,imgno):
+		self.Image=Image
+		self.imgno=imgno
 
 
 if __name__ == "__main__":
@@ -37,8 +41,10 @@ if __name__ == "__main__":
 	scaleFactor=1.1
 	minNeighbors=5
 	minSize=(30,30)
-		# Configuration Parameters for Face Detection Threading
+		# Configuration Parameters for Face Detection Threading & Image Quality Verification
 	FaceDetectionWorkers=4
+	haar_thresh=35
+	min_zero_thresh=0.01
 		# Configuration Parameters for Camera
 	rpiCam=True
 	cameraNum=0
@@ -75,11 +81,13 @@ if __name__ == "__main__":
 	md.motionsense=0
 		# Face Detection Service Queue
 	frameQ=Queue.Queue()
-	imgnoQ=Queue.Queue()
+	verifyQ=Queue.Queue()
 		#Initializing the face Cascade modules & FaceDetection Threads
+		#Initializing the verification of captured image quality stage (Blur Detection)
 	for ID in range(FaceDetectionWorkers):
 		FaceCascade =cv2.CascadeClassifier(CascPath)
-		thread.start_new_thread(DetectFace,(frameQ,imgnoQ,scaleFactor,minNeighbors,minSize,FaceCascade,ID))
+		thread.start_new_thread(DetectFace,(frameQ,verifyQ,scaleFactor,minNeighbors,minSize,FaceCascade,ID))
+		thread.start_new_thread(DetectBlur,(verifyQ,haar_thresh,min_zero_thresh,ID))
 	
 		#Initializing the live feed GUI
 	cv2.namedWindow("Feed")
@@ -104,7 +112,7 @@ if __name__ == "__main__":
 
 
 		# Resizing the frame to enhance the performance
-		frame = imutils.resize(frame, width=500)
+		frame = imutils.resize(frame, width=800,height=480)
 
 
 		# Time stamp the frame
@@ -118,8 +126,7 @@ if __name__ == "__main__":
 			md.reset() # Reseting the detector to avoid flooding the system
 			
 			# New background job for Face Detection Thread
-			frameQ.put(deepcopy(frame))
-			imgnoQ.put(imgno)
+			frameQ.put(framecontainer(deepcopy(frame),imgno))
 
 			# GUI for live feed alert in case of Motion
 
@@ -144,6 +151,7 @@ if __name__ == "__main__":
 		    break
 	#In case of using camera feed, release the resource
 	frameQ.join()
+	verifyQ.join()
 	if cam_feed:
 		feed.cleanup()
 	#Destroy GUI elements		

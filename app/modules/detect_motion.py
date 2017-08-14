@@ -40,8 +40,7 @@ class MotionDetector:
             if cv2.contourArea(c) < self.min_area:
                 continue; # ignore small contours
 
-            # compute the bounding box for the contour, draw it on the frame,
-            # and update the text
+            # compute the bounding box for the contour
             (x, y, w, h) = cv2.boundingRect(c)
 
             # filter out small bounding boxes

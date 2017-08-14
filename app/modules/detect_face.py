@@ -25,6 +25,7 @@ def DetectFace(ImageQ,verifyQ,scaleFactor,minNeighbors,minSize,FaceCascade,Worke
 		#print('Found faces: '+str(len(faces))+' in frame '+str(imgno))
 		for (x, y, w, h) in faces:
 			cv2.rectangle(Image, (x, y), (x+w, y+h), (0, 0, 255), 2)
+		frame.faces=len(faces)
 		if len(faces) > 0:
 			verifyQ.put(frame)
 			#cv2.imwrite('./app/data/snapshots/'+'Faces'+str(len(faces))+'frame'+str(imgno)+'.png',Image)

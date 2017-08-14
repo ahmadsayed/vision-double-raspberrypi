@@ -246,17 +246,21 @@ def haar_blur_test(image, haar_thresh, min_zero_thresh):
     print BLUR_EXTENT_01
 ####################################################################
 # Vision Double Development Code:
-def DetectBlur(verifyQ, haar_thresh, min_zero_thresh,WorkerID):
+def DetectBlur(verifyQ,WatsonDataQ, haar_thresh, min_zero_thresh,WorkerID):
 	while True:
 		frame=verifyQ.get()
 		Image=frame.Image
 		imgno=frame.imgno
 		print("Thread BlurDetect: ",WorkerID," works on frame: ",imgno)
 		is_blurred, blur_extent=haar_estimate_image_blur(Image,haar_thresh,min_zero_thresh)
+		frame.isblur=is_blurred
+		frame.blurextent=blur_extent
 		if not is_blurred:
 			cv2.imwrite('./app/data/snapshots/'+'NoBlurFaces'+'frame'+str(imgno)+'.png',Image)
+			WatsonDataQ.put(frame)
 		else:
 			if is_blurred and blur_extent<0.2:
 				cv2.imwrite('./app/data/snapshots/'+'BlurFaces'+'frame'+str(imgno)+'.png',Image)
+				#WatsonDataQ.put(frame)
 
 		verifyQ.task_done()	
